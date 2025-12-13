@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch: {}
 
+env:
+  WORKING_DIRECTORY: './freedomrentalsbackup'
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -26,20 +29,22 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Build client
         run: pnpm build
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Add CNAME for custom domain
         run: |
-          mkdir -p dist/spa
-          echo "freedomrentals.biz" > dist/spa/CNAME
+          mkdir -p ${{ env.WORKING_DIRECTORY }}/dist/spa
+          echo "freedomrentals.biz" > ${{ env.WORKING_DIRECTORY }}/dist/spa/CNAME
 
       - name: Upload Pages artifact
         uses: actions/upload-artifact@v4
         with:
           name: github-pages
-          path: dist/spa
+          path: ${{ env.WORKING_DIRECTORY }}/dist/spa
 
   deploy:
     needs: build-and-deploy
