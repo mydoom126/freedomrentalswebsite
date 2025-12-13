@@ -16,6 +16,8 @@ const WEB_APP_URL = "/api/book-consultation";
 const FORM_ID = "contact-form";
 
 export default function BookConsultation() {
+  const WEB_APP_URL = "/api/book-consultation";
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, []);
@@ -389,12 +391,21 @@ function FormSection() {
 
     const sendFormData = async (body: Record<string, string>) => {
       try {
+        // mark this as the initial submission
+        const payload = { ...body, stage: "initial", url: WEB_APP_URL };
+        // save to localStorage so ScheduleCall can include it later
+        try {
+          localStorage.setItem("bookConsultationForm", JSON.stringify(payload));
+        } catch (e) {
+          console.warn("Could not save form data to localStorage", e);
+        }
+
         const res = await fetch(WEB_APP_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) {

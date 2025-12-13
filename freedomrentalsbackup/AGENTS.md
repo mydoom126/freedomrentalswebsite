@@ -35,7 +35,7 @@ shared/                   # Types used by both client & server
 
 The routing system is powered by React Router 6:
 
-- `client/pages/Index.tsx` represents the home page.
+- `client/pages/home.tsx` represents the home page.
 - Routes are defined in `client/App.tsx` using the `react-router-dom` import
 - Route files are located in the `client/pages/` directory
 
