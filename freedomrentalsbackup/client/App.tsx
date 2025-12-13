@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import Index from "./pages/home";
 import NotFound from "./pages/NotFound";
 import BookConsultation from "./pages/BookConsultation";
 import ScheduleCall from "./pages/ScheduleCall";

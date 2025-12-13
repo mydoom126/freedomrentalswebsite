@@ -12,6 +12,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
+
+const API_ENDPOINT = "/api/schedule-call";
 
 export default function ScheduleCall() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -21,13 +24,50 @@ export default function ScheduleCall() {
   const handleConfirmBooking = () => {
     if (!selectedDate || !selectedTime) return;
 
-    navigate("/schedule-call/confirmed", {
-      state: {
-        fromSchedule: true,
-        date: selectedDate.toISOString(),
-        time: selectedTime,
-      },
-    });
+    // read initial form data saved in localStorage
+    let initialData: Record<string, any> | null = null;
+    try {
+      const raw = localStorage.getItem("bookConsultationForm");
+      if (raw) initialData = JSON.parse(raw);
+    } catch (e) {
+      console.warn("Could not read saved consultation form", e);
+    }
+
+    const payload = {
+      ...(initialData ?? {}),
+      stage: "schedule",
+      scheduledDate: selectedDate.toISOString(),
+      scheduledTime: selectedTime,
+    };
+
+    void (async () => {
+      try {
+        const res = await fetch(API_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          console.warn("API proxy returned non-OK", res.status, txt);
+          toast({ title: "Submission failed", description: "There was a problem sending your booking. Please try again." });
+        } else {
+          toast({ title: "Booking confirmed", description: "Your time slot has been submitted." });
+        }
+      } catch (error) {
+        console.error("Error sending scheduling data:", error);
+        toast({ title: "Submission error", description: "Unable to send booking — check your connection." });
+      } finally {
+        navigate("/schedule-call/confirmed", {
+          state: {
+            fromSchedule: true,
+            date: selectedDate.toISOString(),
+            time: selectedTime,
+          },
+        });
+      }
+    })();
   };
 
   return (

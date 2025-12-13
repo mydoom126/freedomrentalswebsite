@@ -1,53 +1,49 @@
 import type { RequestHandler } from "express";
 
-// Webhook URLs
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || undefined;
-const N8N_TEST_WEBHOOK_URL = process.env.N8N_TEST_WEBHOOK_URL || "https://n8n.srv1189320.hstgr.cloud/webhook-test/book-consultation";
-const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
+// Schedule Call webhook URLs
+const SCHEDULE_CALL_WEBHOOK_URL = process.env.SCHEDULE_CALL_WEBHOOK_URL || undefined;
+const SCHEDULE_CALL_TEST_WEBHOOK_URL = process.env.SCHEDULE_CALL_TEST_WEBHOOK_URL || "https://n8n.srv1189320.hstgr.cloud/webhook-test/schedule-call";
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
-export const handleBookConsultationSubmission: RequestHandler = async (
+export const handleScheduleCallSubmission: RequestHandler = async (
   req,
   res,
 ) => {
   try {
-    // Determine destination candidates: prefer configured N8N_WEBHOOK_URL, then N8N test URL, then Google Apps Script
     const candidates: string[] = [];
-    if (N8N_WEBHOOK_URL) candidates.push(N8N_WEBHOOK_URL);
-    if (N8N_TEST_WEBHOOK_URL) candidates.push(N8N_TEST_WEBHOOK_URL);
-    if (GOOGLE_APPS_SCRIPT_URL) candidates.push(GOOGLE_APPS_SCRIPT_URL);
+    if (SCHEDULE_CALL_WEBHOOK_URL) candidates.push(SCHEDULE_CALL_WEBHOOK_URL);
+    if (SCHEDULE_CALL_TEST_WEBHOOK_URL) candidates.push(SCHEDULE_CALL_TEST_WEBHOOK_URL);
 
     if (candidates.length === 0) {
-      console.error("No destination webhook configured (N8N_WEBHOOK_URL, N8N_TEST_WEBHOOK_URL or GOOGLE_APPS_SCRIPT_URL)");
-      return res.status(500).json({ result: "error", message: "Destination webhook not configured" });
+      console.error("No schedule call webhook configured (SCHEDULE_CALL_WEBHOOK_URL or SCHEDULE_CALL_TEST_WEBHOOK_URL)");
+      return res.status(500).json({ result: "error", message: "Schedule call webhook not configured" });
     }
 
     // Optional secret verification to prevent abuse
     if (WEBHOOK_SECRET) {
       const provided = (req.headers["x-webhook-secret"] as string) || req.query?.token;
       if (!provided || provided !== WEBHOOK_SECRET) {
-        console.warn("Invalid or missing webhook secret for book consultation submission");
+        console.warn("Invalid or missing webhook secret for schedule call submission");
         return res.status(401).json({ result: "error", message: "Invalid webhook token" });
       }
     }
 
     const payload = req.body ?? {};
 
-    // Basic required fields validation for initial submissions
-    const required = ["firstName", "lastName", "email", "phone"];
+    // Basic required fields validation for schedule submissions
+    const required = ["scheduledDate", "scheduledTime"];
     const missing = required.filter((k) => !payload[k]);
-    if (missing.length > 0 && payload.stage === "initial") {
+    if (missing.length > 0) {
       return res.status(400).json({ result: "error", message: `Missing required fields: ${missing.join(", ")}` });
     }
 
-    // Try each candidate in order until one succeeds
-    let lastError: any = null;
     const fs = await import("fs/promises");
     const file = new URL("../../.local_submissions.json", import.meta.url);
+    let lastError: any = null;
 
     for (const destination of candidates) {
       try {
-        console.log("Forwarding book consultation submission to:", destination);
+        console.log("Forwarding schedule call submission to:", destination);
         const response = await fetch(destination, {
           method: "POST",
           headers: {
@@ -66,9 +62,8 @@ export const handleBookConsultationSubmission: RequestHandler = async (
 
         if (!response.ok) {
           const message = raw || `Destination returned ${response.status}`;
-          console.error("Destination error:", destination, message);
+          console.error("Schedule call webhook error:", destination, message);
 
-          // If this looks like n8n 'webhook not registered', save locally and continue to next candidate
           let parsedRaw: any = null;
           try {
             parsedRaw = raw ? JSON.parse(raw) : null;
@@ -89,10 +84,9 @@ export const handleBookConsultationSubmission: RequestHandler = async (
               } catch {
                 existing = [];
               }
-              existing.push({ receivedAt: new Date().toISOString(), payload, destination, raw });
+              existing.push({ receivedAt: new Date().toISOString(), type: "schedule-call", payload, destination, raw });
               await fs.writeFile(file, JSON.stringify(existing, null, 2), "utf8");
-              console.warn("n8n webhook not registered or inactive — saved submission to .local_submissions.json");
-              // continue to next candidate in case test/prod differs
+              console.warn("n8n schedule call webhook not registered or inactive — saved submission to .local_submissions.json");
               lastError = { destination, message: raw };
               continue;
             } catch (e) {
@@ -102,21 +96,18 @@ export const handleBookConsultationSubmission: RequestHandler = async (
             }
           }
 
-          // Non-n8n failure, record and try next
-          lastError = { destination, message: raw };
+          lastError = { destination, message };
           continue;
         }
 
-        // Success — return parsed or success
         return res.status(200).json(parsed && typeof parsed === "object" ? parsed : { result: "success" });
       } catch (error) {
-        console.error("Error forwarding to destination:", destination, error);
+        console.error("Error forwarding to schedule destination:", destination, error);
         lastError = error;
         continue;
       }
     }
 
-    // If we get here, all candidates failed — save locally as fallback
     try {
       let existing: any[] = [];
       try {
@@ -125,18 +116,16 @@ export const handleBookConsultationSubmission: RequestHandler = async (
       } catch {
         existing = [];
       }
-      const errorMsg = lastError instanceof Error ? lastError.message : typeof lastError === "string" ? lastError : JSON.stringify(lastError);
-      existing.push({ receivedAt: new Date().toISOString(), payload, attempted: candidates, error: errorMsg });
+      existing.push({ receivedAt: new Date().toISOString(), type: "schedule-call", payload, attempted: candidates, error: String(lastError) });
       await fs.writeFile(file, JSON.stringify(existing, null, 2), "utf8");
-      console.warn("All webhook destinations failed — saved submission to .local_submissions.json");
+      console.warn("All schedule call webhook destinations failed — saved submission to .local_submissions.json");
     } catch (e) {
       console.error("Failed to save fallback submission:", e);
     }
 
-    const errorMsg = lastError instanceof Error ? lastError.message : typeof lastError === "string" ? lastError : JSON.stringify(lastError);
-    return res.status(502).json({ result: "error", message: errorMsg });
+    return res.status(502).json({ result: "error", message: String(lastError) });
   } catch (error) {
-    console.error("Failed to forward consultation submission:", error);
+    console.error("Failed to forward schedule call submission:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return res.status(502).json({ result: "error", message });
   }

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { Request, Response } from "express";
 import { handleBookConsultationSubmission } from "./routes/bookConsultation";
+import { handleScheduleCallSubmission } from "./routes/scheduleCall";
 
 // Create Express app
 export function createServer() {
@@ -33,6 +34,9 @@ export function createServer() {
 
   // Book consultation submission
   app.post("/api/book-consultation", handleBookConsultationSubmission);
+
+  // Schedule call submission
+  app.post("/api/schedule-call", handleScheduleCallSubmission);
 
   // Add more API routes here as needed
   // app.use('/api/properties', propertyRoutes);
