@@ -36,8 +36,9 @@ jobs:
           echo "freedomrentals.biz" > dist/spa/CNAME
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
+          name: github-pages
           path: dist/spa
 
   deploy:
