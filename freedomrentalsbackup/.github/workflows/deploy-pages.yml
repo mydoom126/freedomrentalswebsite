@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - codex/analyze-repository-for-404-error-fix
   workflow_dispatch: {}
 
 jobs:
