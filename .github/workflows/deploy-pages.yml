@@ -10,12 +10,8 @@ env:
   WORKING_DIRECTORY: './freedomrentalsbackup'
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-      pages: write
 
     steps:
       - name: Checkout
@@ -41,25 +37,24 @@ jobs:
 
       - name: Add CNAME for custom domain
         run: |
-          mkdir -p ${{ env.WORKING_DIRECTORY }}/dist/spa
           echo "freedomrentals.biz" > ${{ env.WORKING_DIRECTORY }}/dist/spa/CNAME
 
       - name: Upload Pages artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: ${{ env.WORKING_DIRECTORY }}/dist/spa
 
   deploy:
-    needs: build-and-deploy
+    needs: build
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       pages: write
+      id-token: write
     environment:
       name: github-pages
-      url: https://
+      url: https://freedomrentals.biz
 
     steps:
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+        id: deployment
+        uses: actions/deploy-pages@v4
