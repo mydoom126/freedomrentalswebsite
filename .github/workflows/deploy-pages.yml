@@ -12,6 +12,10 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
 
     steps:
       - name: Checkout
@@ -49,6 +53,9 @@ jobs:
   deploy:
     needs: build-and-deploy
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      pages: write
     environment:
       name: github-pages
       url: https://
