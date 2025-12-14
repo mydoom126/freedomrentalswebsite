@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 
 // Webhook URLs
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || undefined;
-const N8N_TEST_WEBHOOK_URL = process.env.N8N_TEST_WEBHOOK_URL || "https://n8n.srv1189320.hstgr.cloud/webhook-test/book-consultation";
+const N8N_TEST_WEBHOOK_URL = process.env.N8N_TEST_WEBHOOK_URL || "https://n8n.srv1189320.hstgr.cloud/webhook/book-consultation";
 const GOOGLE_APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
