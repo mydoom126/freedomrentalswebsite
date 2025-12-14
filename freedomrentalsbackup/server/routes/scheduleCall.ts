@@ -41,12 +41,13 @@ export const handleScheduleCallSubmission: RequestHandler = async (
     const responseText = await response.text();
     console.log("n8n Response Status:", response.status);
     console.log("n8n Response Body:", responseText);
+    console.log("n8n Response OK:", response.ok);
 
     let responseData: any = null;
     try {
       responseData = responseText ? JSON.parse(responseText) : null;
     } catch {
-      responseData = responseText;
+      responseData = responseText || `Empty response (status: ${response.status})`;
     }
 
     if (!response.ok) {
@@ -58,8 +59,8 @@ export const handleScheduleCallSubmission: RequestHandler = async (
       });
     }
 
-    console.log("Successfully forwarded to n8n");
-    return res.status(200).json(responseData || { result: "success" });
+    console.log("Successfully forwarded schedule call to n8n - n8n confirmed receipt");
+    return res.status(200).json({ result: "success", message: "Schedule data sent to n8n successfully" });
   } catch (error) {
     console.error("Failed to forward schedule call submission:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
