@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 
 // Schedule Call webhook URLs
 const SCHEDULE_CALL_WEBHOOK_URL = process.env.SCHEDULE_CALL_WEBHOOK_URL || undefined;
-const SCHEDULE_CALL_TEST_WEBHOOK_URL = process.env.SCHEDULE_CALL_TEST_WEBHOOK_URL || "https://n8n.srv1189320.hstgr.cloud/webhook-test/schedule-call";
+const SCHEDULE_CALL_TEST_WEBHOOK_URL = process.env.SCHEDULE_CALL_TEST_WEBHOOK_URL || "https://n8n.srv1189320.hstgr.cloud/webhook/book-consultation";
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 export const handleScheduleCallSubmission: RequestHandler = async (
