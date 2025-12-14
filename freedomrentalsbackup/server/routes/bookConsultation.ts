@@ -1,7 +1,7 @@
 import type { RequestHandler } from "express";
 
-// Webhook URLs - use the exact n8n webhook provided
-const N8N_WEBHOOK_URL = "https://n8n.srv1189320.hstgr.cloud/webhook/book-consultation";
+// Webhook URLs - use the test webhook which is active
+const N8N_WEBHOOK_URL = "https://n8n.srv1189320.hstgr.cloud/webhook-test/book-consultation";
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 export const handleBookConsultationSubmission: RequestHandler = async (
