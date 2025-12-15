@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CalendarDays as CalendarDaysIcon,
   Globe,
@@ -19,6 +19,7 @@ const API_ENDPOINT = "/api/schedule-call";
 export default function ScheduleCall() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<Record<string, string[]>>({});
   const navigate = useNavigate();
 
   const handleConfirmBooking = () => {
@@ -70,6 +71,19 @@ export default function ScheduleCall() {
     })();
   };
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/availability');
+        if (!res.ok) return;
+        const json = await res.json();
+        setAvailability(json.availability || {});
+      } catch (e) {
+        console.warn('Failed to load availability', e);
+      }
+    })();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <HeroSection />
@@ -82,6 +96,7 @@ export default function ScheduleCall() {
             selectedTime={selectedTime}
             setSelectedTime={setSelectedTime}
             onConfirm={handleConfirmBooking}
+            availability={availability}
           />
           <BookingSummary
             selectedDate={selectedDate}
@@ -183,12 +198,14 @@ function DateTimeSelection({
   selectedTime,
   setSelectedTime,
   onConfirm,
+  availability,
 }: {
   selectedDate: Date | null;
   setSelectedDate: (date: Date | null) => void;
   selectedTime: string | null;
   setSelectedTime: (time: string | null) => void;
   onConfirm: () => void;
+  availability?: Record<string, string[]>;
 }) {
   return (
     <div className="space-y-6">
@@ -206,6 +223,7 @@ function DateTimeSelection({
         <Calendar
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
+          availability={availability}
         />
 
         <div className="mt-6 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-purple-50 p-4">
@@ -219,6 +237,8 @@ function DateTimeSelection({
       <TimeSlots
         selectedTime={selectedTime}
         setSelectedTime={setSelectedTime}
+        selectedDate={selectedDate}
+        availability={availability}
       />
 
       <div className="flex gap-4">
@@ -248,6 +268,7 @@ function Calendar({
 }: {
   selectedDate: Date | null;
   setSelectedDate: (date: Date | null) => void;
+  availability?: Record<string, string[]>;
 }) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -319,6 +340,12 @@ function Calendar({
 
   const matrix = buildCalendarMatrix(currentMonth);
 
+  const hasAvailability = (date: Date) => {
+    if (!availability) return true;
+    const key = date.toISOString().slice(0,10);
+    return Boolean(availability[key] && availability[key].length > 0);
+  };
+
   const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -363,7 +390,7 @@ function Calendar({
           {matrix.map((week, weekIndex) => (
             <div key={weekIndex} className="grid grid-cols-7 gap-0">
               {week.map((date, dateIndex) => {
-                const isDisabled = date < today;
+                const isDisabled = date < today || (isCurrentMonth && !hasAvailability(date));
                 const isCurrentMonth =
                   date.getMonth() === currentMonth.getMonth();
                 const isSelected = selectedDate
@@ -403,17 +430,15 @@ function TimeSlots({
 }: {
   selectedTime: string | null;
   setSelectedTime: (time: string | null) => void;
+  selectedDate?: Date | null;
+  availability?: Record<string, string[]>;
 }) {
-  const timeSlots = [
-    { time: "9:00 AM", disabled: false, hasIndicator: false },
-    { time: "10:00 AM", disabled: false, hasIndicator: false },
-    { time: "11:00 AM", disabled: false, hasIndicator: false },
-    { time: "1:00 PM", disabled: false, hasIndicator: true },
-    { time: "2:00 PM", disabled: false, hasIndicator: false },
-    { time: "3:00 PM", disabled: false, hasIndicator: true },
-    { time: "4:00 PM", disabled: false, hasIndicator: false },
-    { time: "5:00 PM", disabled: false, hasIndicator: false },
+  const defaultSlots = [
+    "9:00 AM","10:00 AM","11:00 AM","1:00 PM","2:00 PM","3:00 PM","4:00 PM","5:00 PM"
   ];
+
+  const key = selectedDate ? selectedDate.toISOString().slice(0,10) : null;
+  const slots = key && availability && availability[key] ? availability[key] : defaultSlots;
 
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-[0_8px_30px_0_rgba(0,0,0,0.06)]">
@@ -435,7 +460,9 @@ function TimeSlots({
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        {timeSlots.map(({ time, disabled, hasIndicator }) => {
+        {slots.map((time) => {
+          const disabled = false;
+          const hasIndicator = false;
           const isSelected = selectedTime === time;
 
           return (

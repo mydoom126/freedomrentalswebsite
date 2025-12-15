@@ -1,8 +1,62 @@
 import type { RequestHandler } from "express";
+import { readFile, writeFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// Schedule Call webhook URL - using the test webhook which is active
-const SCHEDULE_CALL_WEBHOOK_URL = "https://n8n.srv1189320.hstgr.cloud/webhook-test/book-consultation";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const N8N_BASE = "https://n8n.srv1189320.hstgr.cloud";
+const PROD_PATH = "/webhook/book-consultation";
+const TEST_PATH = "/webhook-test/book-consultation";
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+
+const storageFile = path.resolve(__dirname, "../../.local_submissions.json");
+
+async function persistFailure(entry: any) {
+  try {
+    let list: any[] = [];
+    try {
+      const existing = await readFile(storageFile, "utf8");
+      list = existing ? JSON.parse(existing) : [];
+    } catch {
+      list = [];
+    }
+    list.push({ timestamp: new Date().toISOString(), entry });
+    await writeFile(storageFile, JSON.stringify(list, null, 2), "utf8");
+  } catch (err) {
+    console.warn("Failed to persist submission locally:", err);
+  }
+}
+
+async function tryForwardToUrls(urls: string[], payload: any) {
+  for (const url of urls) {
+    try {
+      console.log("Attempting forward to:", url);
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const text = await resp.text();
+      let data: any = null;
+      try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+      if (resp.ok) return { ok: true, url, status: resp.status, data };
+
+      if (resp.status === 404) {
+        console.warn("Webhook returned 404 at", url, "— trying next if available");
+        continue;
+      }
+
+      return { ok: false, url, status: resp.status, data };
+    } catch (err) {
+      console.error("Fetch error forwarding to", url, err);
+      continue;
+    }
+  }
+  return { ok: false, status: 404, data: "No registered webhook found on configured paths" };
+}
 
 export const handleScheduleCallSubmission: RequestHandler = async (
   req,
@@ -27,40 +81,20 @@ export const handleScheduleCallSubmission: RequestHandler = async (
       return res.status(400).json({ result: "error", message: `Missing required fields: ${missing.join(", ")}` });
     }
 
-    console.log("Forwarding schedule call submission to n8n:", SCHEDULE_CALL_WEBHOOK_URL);
     console.log("Payload:", JSON.stringify(payload, null, 2));
 
-    const response = await fetch(SCHEDULE_CALL_WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const urls = [N8N_BASE + PROD_PATH, N8N_BASE + TEST_PATH];
+    const result = await tryForwardToUrls(urls, payload);
 
-    const responseText = await response.text();
-    console.log("n8n Response Status:", response.status);
-    console.log("n8n Response Body:", responseText);
-    console.log("n8n Response OK:", response.ok);
-
-    let responseData: any = null;
-    try {
-      responseData = responseText ? JSON.parse(responseText) : null;
-    } catch {
-      responseData = responseText || `Empty response (status: ${response.status})`;
+    if (!result.ok) {
+      console.error("All webhook forwarding attempts failed:", result);
+      await persistFailure({ type: "schedule-call", payload, forwardResult: result });
+      const status = result.status || 500;
+      return res.status(status).json({ result: "error", message: "Failed to deliver to n8n", details: result.data });
     }
 
-    if (!response.ok) {
-      console.error("n8n webhook error:", response.status, responseData);
-      return res.status(response.status).json({
-        result: "error",
-        message: `n8n returned ${response.status}`,
-        details: responseData,
-      });
-    }
-
-    console.log("Successfully forwarded schedule call to n8n - n8n confirmed receipt");
-    return res.status(200).json({ result: "success", message: "Schedule data sent to n8n successfully" });
+    console.log("Forward successful to", result.url, "status", result.status);
+    return res.status(200).json({ result: "success", message: "Schedule data sent to n8n successfully", forwardedTo: result.url, n8nResponse: result.data });
   } catch (error) {
     console.error("Failed to forward schedule call submission:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
