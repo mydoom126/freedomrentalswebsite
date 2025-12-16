@@ -39,6 +39,10 @@ jobs:
         run: |
           echo "freedomrentals.biz" > ${{ env.WORKING_DIRECTORY }}/dist/spa/CNAME
 
+      - name: Create SPA-friendly 404
+        run: |
+          # Ensure a 404.html that loads the SPA so direct navigations work
+          cp ${{ env.WORKING_DIRECTORY }}/dist/spa/index.html ${{ env.WORKING_DIRECTORY }}/dist/spa/404.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
