@@ -1,8 +1,8 @@
 [build]
+  base = "freedomrentalsbackup"
   command = "pnpm build"
-  functions = "netlify/functions"
   publish = "dist/spa"
-
+  functions = "netlify/functions"
 
 [functions]
   node_bundler = "esbuild"
@@ -10,8 +10,8 @@
 [[redirects]]
   force = true
   from = "/api/*"
-  status = 200
   to = "/.netlify/functions/api/:splat"
+  status = 200
 
 [[redirects]]
   from = "/*"
