@@ -3,9 +3,8 @@ import { fileURLToPath } from "url";
 import path from "path";
 import { readFile, writeFile } from "fs/promises";
 
-const N8N_BASE = "https://n8n.srv1189320.hstgr.cloud";
-const PROD_PATH = "/webhook/availability";
-const TEST_PATH = "/webhook-test/availability";
+const N8N_WEBHOOK_URL =
+  "https://n8n.srv1189320.hstgr.cloud/webhook/availability";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,19 +41,16 @@ function buildDefaultAvailability(days = 21) {
 
 export const handleGetAvailability: RequestHandler = async (req, res) => {
   try {
-    const urls = [N8N_BASE + PROD_PATH, N8N_BASE + TEST_PATH];
-    for (const url of urls) {
-      try {
-        const resp = await fetch(url, { method: 'GET' });
-        if (!resp.ok) {
-          // try next
-          continue;
-        }
+    try {
+      const resp = await fetch(N8N_WEBHOOK_URL, { method: "GET" });
+      if (resp.ok) {
         const data = await resp.json();
-        return res.status(200).json({ source: url, availability: data });
-      } catch (err) {
-        continue;
+        return res
+          .status(200)
+          .json({ source: N8N_WEBHOOK_URL, availability: data });
       }
+    } catch (err) {
+      // fall through to fallback below
     }
 
     // Fallback default availability

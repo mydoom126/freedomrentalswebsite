@@ -265,6 +265,7 @@ function DateTimeSelection({
 function Calendar({
   selectedDate,
   setSelectedDate,
+  availability,
 }: {
   selectedDate: Date | null;
   setSelectedDate: (date: Date | null) => void;
@@ -390,9 +391,10 @@ function Calendar({
           {matrix.map((week, weekIndex) => (
             <div key={weekIndex} className="grid grid-cols-7 gap-0">
               {week.map((date, dateIndex) => {
-                const isDisabled = date < today || (isCurrentMonth && !hasAvailability(date));
                 const isCurrentMonth =
                   date.getMonth() === currentMonth.getMonth();
+                const isDisabled =
+                  date < today || (isCurrentMonth && !hasAvailability(date));
                 const isSelected = selectedDate
                   ? isSameDay(date, selectedDate)
                   : false;
@@ -427,6 +429,8 @@ function Calendar({
 function TimeSlots({
   selectedTime,
   setSelectedTime,
+  selectedDate,
+  availability,
 }: {
   selectedTime: string | null;
   setSelectedTime: (time: string | null) => void;

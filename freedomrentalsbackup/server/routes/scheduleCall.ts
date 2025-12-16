@@ -6,9 +6,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const N8N_BASE = "https://n8n.srv1189320.hstgr.cloud";
-const PROD_PATH = "/webhook/book-consultation";
-const TEST_PATH = "/webhook-test/book-consultation";
+const N8N_WEBHOOK_URL =
+  "https://n8n.srv1189320.hstgr.cloud/webhook/availability";
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 const storageFile = path.resolve(__dirname, "../../.local_submissions.json");
@@ -29,33 +28,21 @@ async function persistFailure(entry: any) {
   }
 }
 
-async function tryForwardToUrls(urls: string[], payload: any) {
-  for (const url of urls) {
-    try {
-      console.log("Attempting forward to:", url);
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const text = await resp.text();
-      let data: any = null;
-      try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-
-      if (resp.ok) return { ok: true, url, status: resp.status, data };
-
-      if (resp.status === 404) {
-        console.warn("Webhook returned 404 at", url, "— trying next if available");
-        continue;
-      }
-
-      return { ok: false, url, status: resp.status, data };
-    } catch (err) {
-      console.error("Fetch error forwarding to", url, err);
-      continue;
-    }
+async function forwardToWebhook(url: string, payload: any) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await resp.text();
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
   }
-  return { ok: false, status: 404, data: "No registered webhook found on configured paths" };
+
+  return { ok: resp.ok, url, status: resp.status, data };
 }
 
 export const handleScheduleCallSubmission: RequestHandler = async (
@@ -83,8 +70,7 @@ export const handleScheduleCallSubmission: RequestHandler = async (
 
     console.log("Payload:", JSON.stringify(payload, null, 2));
 
-    const urls = [N8N_BASE + PROD_PATH, N8N_BASE + TEST_PATH];
-    const result = await tryForwardToUrls(urls, payload);
+    const result = await forwardToWebhook(N8N_WEBHOOK_URL, payload);
 
     if (!result.ok) {
       console.error("All webhook forwarding attempts failed:", result);
